@@ -2,9 +2,13 @@ class HttpError extends Error {
     constructor(
         public statusCode: number,
         public details: string,
-        msg: string | undefined
+        msg?: string
     ) {
-        super(msg);
+        let message =
+            msg == undefined
+                ? "Erro de processamento com retorno em Http"
+                : msg;
+        super(message);
     }
 }
 

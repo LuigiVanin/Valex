@@ -8,7 +8,7 @@ import cardRouter from "./routers/cardRouter";
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(cardRouter);
+app.use("/card", cardRouter);
 app.use(errorHandler);
 
 export default app;

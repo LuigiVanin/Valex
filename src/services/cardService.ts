@@ -1,20 +1,32 @@
-import db from "../config/database";
+import bcrypt from "bcrypt";
 import {
     findByTypeAndEmployeeId,
     insert,
+    findById as findCardById,
     TransactionTypes,
+    update,
+    Card,
 } from "../repositories/cardRepository";
-import { findById } from "../repositories/employeeRepository";
 import HttpError from "../utils/exceptions";
 import { StatusCode } from "../utils/statusCode";
+import { formatName, generateDigits, generateExpDate } from "../utils/utils";
+import "../config/setup";
+import { findById } from "../repositories/employeeRepository";
 
 class CardService {
-    static createCard = async (
-        apikey: string | string[] | undefined,
-        id: number,
-        type: TransactionTypes,
-        password: string
-    ) => {
+    private static getCardOrError = async (cardId: number) => {
+        const card = await findCardById(cardId);
+        if (!card) {
+            throw new HttpError(
+                StatusCode.NotFound_404,
+                "Cartão não encontrado"
+            );
+        }
+
+        return card;
+    };
+
+    static createCard = async (id: number, type: TransactionTypes) => {
         const [employee, haveSameType] = await Promise.all([
             findById(id),
             findByTypeAndEmployeeId(type, id),
@@ -28,24 +40,59 @@ class CardService {
         }
         if (!!haveSameType) {
             throw new HttpError(
-                StatusCode.Conflict_304,
+                StatusCode.Conflict_409,
                 `usuário já tem cartão do tipo ${type}`,
                 "Falha em criar cartão, tipo já existente"
             );
         }
-
-        await insert({
+        const card = {
             employeeId: employee.id,
             isVirtual: false,
-            securityCode: "123",
-            expirationDate: "",
+            securityCode: generateDigits(3),
+            expirationDate: generateExpDate(5),
             type,
-            password,
-            cardholderName: employee.fullName,
-            number: "123",
+            cardholderName: formatName(employee.fullName),
+            number: generateDigits(16),
             isBlocked: false,
-        });
-        return;
+        };
+
+        await insert(card);
+        return card;
+    };
+
+    // TODO: checar expiração
+    static activateCard = async (
+        cardId: number,
+        cvc: string,
+        password: string
+    ) => {
+        const card = await CardService.getCardOrError(cardId);
+        if (card.securityCode !== cvc) {
+            throw new HttpError(StatusCode.Forbidden_403, "CVC incorreto");
+        }
+        if (!!card.password) {
+            throw new HttpError(StatusCode.OK_200, "Cartão já foi ativado");
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await update(cardId, { password: hashedPassword });
+    };
+
+    // TODO: checar expiração
+    static blockCard = async (cardId: number, password: string) => {
+        const card = await CardService.getCardOrError(cardId);
+        if (!card.password) {
+            throw new HttpError(
+                StatusCode.Forbidden_403,
+                "O cartão ainda não foi ativado"
+            );
+        }
+        if (!bcrypt.compareSync(password, card.password)) {
+            throw new HttpError(
+                StatusCode.Forbidden_403,
+                "A senha do cartão esta incorreta!"
+            );
+        }
+        await update(cardId, { isBlocked: true });
     };
 }
 
