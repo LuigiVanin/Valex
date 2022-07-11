@@ -21,8 +21,6 @@ class PaymentService {
         return [payments, totalPayment];
     };
 
-    static isValidBusiness = (business: Business, card: Card) => {};
-
     static purchase = async (
         cardId: number,
         password: string,
