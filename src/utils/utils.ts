@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
 export const generateDigits = (length: number) => {
     let ans = "";
@@ -26,4 +27,10 @@ export const formatName = (name: string) => {
             return item;
         });
     return names.join(" ");
+};
+
+export const isCardExpired = (expDate: string) => {
+    dayjs.extend(customParseFormat);
+    const date = dayjs(expDate, "MM/YY");
+    return date.toDate() <= new Date();
 };

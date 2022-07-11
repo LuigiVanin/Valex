@@ -36,4 +36,6 @@ cardRouter.patch(
     CardController.unblockCard
 );
 
+cardRouter.get("/:cardId", authentication, CardController.viewBalance);
+
 export default cardRouter;

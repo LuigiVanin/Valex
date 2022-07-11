@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import CardService from "../services/cardService";
 import { CustomRequest } from "../utils/interfaces";
 import {
@@ -48,6 +48,13 @@ class CardController {
         console.log(cardId, password);
         await CardService.unblockCard(cardId, password);
         return res.status(201).send({ msg: "cartão desbloqueado" });
+    };
+
+    static viewBalance = async (req: Request, res: Response) => {
+        console.log(req.params);
+        const cardId = CardService.validateCardId(req.params.cardId);
+        const balance = await CardService.getCardBalance(cardId);
+        return res.status(201).send(balance);
     };
 }
 

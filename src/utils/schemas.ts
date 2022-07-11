@@ -1,7 +1,8 @@
 import Joi from "joi";
 
 // TODO: use this value on id fields
-const cardIdParamSchema = Joi.number().integer().min(1).required();
+const itemIdSchema = Joi.number().integer().min(1).required();
+const cardIdParamSchema = itemIdSchema;
 
 const authSchema = Joi.string().required();
 
@@ -27,7 +28,7 @@ const activateCardSchema = Joi.object({
 });
 
 const blockCardSchema = Joi.object({
-    cardId: Joi.number().integer().required(),
+    cardId: itemIdSchema,
     password: Joi.string()
         .length(4)
         .pattern(/^[0-9]*$/)
@@ -38,6 +39,15 @@ const rechargeSchema = Joi.object({
     amount: Joi.number().integer().min(1).required(),
 });
 
+const paymentSchema = Joi.object({
+    amount: Joi.number().integer().min(1).required(),
+    password: Joi.string()
+        .length(4)
+        .pattern(/^[0-9]*$/)
+        .required(),
+    businessId: itemIdSchema,
+});
+
 export {
     authSchema,
     createCardSchema,
@@ -45,4 +55,5 @@ export {
     blockCardSchema,
     rechargeSchema,
     cardIdParamSchema,
+    paymentSchema,
 };

@@ -8,9 +8,17 @@ import {
 } from "../repositories/cardRepository";
 import HttpError from "../utils/exceptions";
 import { StatusCode } from "../utils/statusCode";
-import { formatName, generateDigits, generateExpDate } from "../utils/utils";
+import {
+    formatName,
+    generateDigits,
+    generateExpDate,
+    isCardExpired,
+} from "../utils/utils";
 import "../config/setup";
 import { findById } from "../repositories/employeeRepository";
+import { cardIdParamSchema } from "../utils/schemas";
+import PaymentService from "./paymentService";
+import RechargeService from "./rechargeService";
 
 class CardService {
     static getCardOrError404 = async (cardId: number) => {
@@ -35,10 +43,27 @@ class CardService {
         return dbPassword as string;
     };
 
-    private static checkCardPassword = (
-        password: string,
-        hash: string | undefined
-    ) => {
+    static checkExpDateOrError403 = (expDate: string) => {
+        if (isCardExpired(expDate)) {
+            throw new HttpError(
+                StatusCode.Forbidden_403,
+                `Cartão já expirado! expDate: ${expDate}`
+            );
+        }
+    };
+
+    static validateCardId = (cardId: string | number | undefined) => {
+        const validation = cardIdParamSchema.validate(cardId);
+        if (validation.error) {
+            throw new HttpError(
+                StatusCode.BadRequest_400,
+                "id de cartão inválido"
+            );
+        }
+        return validation.value as number;
+    };
+
+    static authenticateCard = (password: string, hash: string | undefined) => {
         hash = CardService.checkActiveOr403(hash);
         if (!bcrypt.compareSync(password, hash)) {
             throw new HttpError(
@@ -95,6 +120,7 @@ class CardService {
         if (!!card.password) {
             throw new HttpError(StatusCode.OK_200, "Cartão já foi ativado");
         }
+        CardService.checkExpDateOrError403(card.expirationDate);
         const hashedPassword = await bcrypt.hash(password, 10);
         await update(cardId, { password: hashedPassword });
     };
@@ -102,7 +128,10 @@ class CardService {
     // TODO: checar expiração
     static blockCard = async (cardId: number, password: string) => {
         const card = await CardService.getCardOrError404(cardId);
-        CardService.checkCardPassword(password, card.password);
+
+        CardService.authenticateCard(password, card.password);
+        CardService.checkExpDateOrError403(card.expirationDate);
+
         if (card.isBlocked) {
             throw new HttpError(
                 StatusCode.Conflict_409,
@@ -115,6 +144,10 @@ class CardService {
 
     static unblockCard = async (cardId: number, password: string) => {
         const card = await CardService.getCardOrError404(cardId);
+
+        CardService.authenticateCard(password, card.password);
+        CardService.checkExpDateOrError403(card.expirationDate);
+
         if (!card.isBlocked) {
             throw new HttpError(
                 StatusCode.Conflict_409,
@@ -123,6 +156,20 @@ class CardService {
         }
 
         await update(cardId, { isBlocked: false });
+    };
+
+    static getCardBalance = async (cardId: number) => {
+        const [[recharges, totalRecharges], [payments, totalPayments]] =
+            await Promise.all([
+                RechargeService.getRechargesBalance(cardId),
+                PaymentService.getPaymentBalance(cardId),
+            ]);
+
+        return {
+            balance: totalRecharges - totalPayments,
+            transactions: payments,
+            recharges,
+        };
     };
 }
 
