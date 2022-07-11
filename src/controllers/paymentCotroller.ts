@@ -21,7 +21,9 @@ class PaymentController {
             amount,
             businessId
         );
-        res.status(StatusCode.Created_201).send({ msg: "" });
+        res.status(StatusCode.Created_201).send({
+            msg: `A compra foi efetivada`,
+        });
     };
 }
 

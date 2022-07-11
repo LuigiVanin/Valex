@@ -1,4 +1,6 @@
 import bcrypt from "bcrypt";
+import Cryptr from "cryptr";
+import "../config/setup";
 import {
     findByTypeAndEmployeeId,
     insert,
@@ -92,10 +94,14 @@ class CardService {
                 "Falha em criar cartão, tipo já existente"
             );
         }
+
+        const key = process.env.KEY || "my super super key";
+        console.log(key);
+        const crpt = new Cryptr(key);
         const card = {
             employeeId: employee.id,
             isVirtual: false,
-            securityCode: generateDigits(3),
+            securityCode: crpt.encrypt(generateDigits(3)),
             expirationDate: generateExpDate(5),
             type,
             cardholderName: formatName(employee.fullName),
@@ -104,17 +110,22 @@ class CardService {
         };
 
         await insert(card);
-        return card;
+        return {
+            ...card,
+            securityCode: crpt.decrypt(card.securityCode),
+        };
     };
 
-    // TODO: checar expiração
     static activateCard = async (
         cardId: number,
         cvc: string,
         password: string
     ) => {
         const card = await CardService.getCardOrError404(cardId);
-        if (card.securityCode !== cvc) {
+        const key = process.env.KEY || "my super super key";
+        const crpt = new Cryptr(key);
+        const decodedCvc = crpt.decrypt(card.securityCode);
+        if (decodedCvc !== cvc) {
             throw new HttpError(StatusCode.Forbidden_403, "CVC incorreto");
         }
         if (!!card.password) {

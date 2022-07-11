@@ -7,6 +7,7 @@ const errorHandler = async (
     res: Response,
     _next: NextFunction
 ) => {
+    console.log(error instanceof HttpError);
     if (!(error instanceof HttpError)) {
         console.log(error);
         return res.sendStatus(500);
