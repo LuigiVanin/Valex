@@ -29,4 +29,11 @@ cardRouter.patch(
     CardController.blockCard
 );
 
+cardRouter.patch(
+    "/unblock",
+    requestGuard(blockCardSchema),
+    authentication,
+    CardController.unblockCard
+);
+
 export default cardRouter;

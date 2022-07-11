@@ -5,7 +5,6 @@ import {
     findById as findCardById,
     TransactionTypes,
     update,
-    Card,
 } from "../repositories/cardRepository";
 import HttpError from "../utils/exceptions";
 import { StatusCode } from "../utils/statusCode";
@@ -14,7 +13,7 @@ import "../config/setup";
 import { findById } from "../repositories/employeeRepository";
 
 class CardService {
-    private static getCardOrError = async (cardId: number) => {
+    static getCardOrError404 = async (cardId: number) => {
         const card = await findCardById(cardId);
         if (!card) {
             throw new HttpError(
@@ -24,6 +23,29 @@ class CardService {
         }
 
         return card;
+    };
+
+    static checkActiveOr403 = (dbPassword: string | undefined) => {
+        if (!dbPassword) {
+            throw new HttpError(
+                StatusCode.Forbidden_403,
+                "O cartão ainda não foi ativado"
+            );
+        }
+        return dbPassword as string;
+    };
+
+    private static checkCardPassword = (
+        password: string,
+        hash: string | undefined
+    ) => {
+        hash = CardService.checkActiveOr403(hash);
+        if (!bcrypt.compareSync(password, hash)) {
+            throw new HttpError(
+                StatusCode.Forbidden_403,
+                "A senha do cartão esta incorreta!"
+            );
+        }
     };
 
     static createCard = async (id: number, type: TransactionTypes) => {
@@ -66,7 +88,7 @@ class CardService {
         cvc: string,
         password: string
     ) => {
-        const card = await CardService.getCardOrError(cardId);
+        const card = await CardService.getCardOrError404(cardId);
         if (card.securityCode !== cvc) {
             throw new HttpError(StatusCode.Forbidden_403, "CVC incorreto");
         }
@@ -79,20 +101,28 @@ class CardService {
 
     // TODO: checar expiração
     static blockCard = async (cardId: number, password: string) => {
-        const card = await CardService.getCardOrError(cardId);
-        if (!card.password) {
+        const card = await CardService.getCardOrError404(cardId);
+        CardService.checkCardPassword(password, card.password);
+        if (card.isBlocked) {
             throw new HttpError(
-                StatusCode.Forbidden_403,
-                "O cartão ainda não foi ativado"
+                StatusCode.Conflict_409,
+                "O cartão já foi bloqueado"
             );
         }
-        if (!bcrypt.compareSync(password, card.password)) {
-            throw new HttpError(
-                StatusCode.Forbidden_403,
-                "A senha do cartão esta incorreta!"
-            );
-        }
+
         await update(cardId, { isBlocked: true });
+    };
+
+    static unblockCard = async (cardId: number, password: string) => {
+        const card = await CardService.getCardOrError404(cardId);
+        if (!card.isBlocked) {
+            throw new HttpError(
+                StatusCode.Conflict_409,
+                "O cartão não está bloqueado"
+            );
+        }
+
+        await update(cardId, { isBlocked: false });
     };
 }
 

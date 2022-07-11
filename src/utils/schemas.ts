@@ -1,10 +1,17 @@
 import Joi from "joi";
 
+// TODO: use this value on id fields
+const cardIdParamSchema = Joi.number().integer().min(1).required();
+
 const authSchema = Joi.string().required();
 
 const createCardSchema = Joi.object({
     id: Joi.number().integer().required(),
-    type: Joi.string().required(),
+    type: Joi.string()
+        .equal(
+            ...["groceries", "restaurant", "transport", "education", "health"]
+        )
+        .required(),
 });
 
 const activateCardSchema = Joi.object({
@@ -27,4 +34,15 @@ const blockCardSchema = Joi.object({
         .required(),
 });
 
-export { authSchema, createCardSchema, activateCardSchema, blockCardSchema };
+const rechargeSchema = Joi.object({
+    amount: Joi.number().integer().min(1).required(),
+});
+
+export {
+    authSchema,
+    createCardSchema,
+    activateCardSchema,
+    blockCardSchema,
+    rechargeSchema,
+    cardIdParamSchema,
+};

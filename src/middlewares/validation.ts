@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import Joi from "joi";
 
-const requestGuard = (Schema: Joi.Schema) => {
+const requestGuard = (Schema: Joi.Schema<any>) => {
     return (req: Request, res: Response, next: NextFunction) => {
         const validation = Schema.validate(req.body, { abortEarly: false });
         if (validation.error) {

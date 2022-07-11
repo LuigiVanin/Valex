@@ -3,9 +3,9 @@ import HttpError from "../utils/exceptions";
 
 const errorHandler = async (
     error: HttpError | Error,
-    req: Request,
+    _req: Request,
     res: Response,
-    next: NextFunction
+    _next: NextFunction
 ) => {
     if (!(error instanceof HttpError)) {
         console.log(error);
